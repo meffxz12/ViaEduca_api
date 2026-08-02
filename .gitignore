@@ -1,0 +1,12 @@
+# Ambiente virtual
+.venv/
+
+# Variáveis de ambiente
+.env
+
+# Firebase
+firebase-service-account.json
+
+# Python
+__pycache__/
+*.pyc
