@@ -11,12 +11,12 @@ from crud import programas as crud
 from crud import linha_pesquisa as crud_linha
 from crud import etapa_processo as crud_etapa
 from dependencies import pegar_sessao, exigir_coordenador
-from models import Usuario, ProgramaCapes
+from models import Usuario, Programa
 from schemas.programas import (
     ProgramaCreate,
     ProgramaUpdate,
     ProgramaResponse,
-     ProgramaCapesResponse,
+    ProgramaCapesResponse,
     ProgramaListItem,
     LinhaPesquisaCreate,
     LinhaPesquisaUpdate,
@@ -25,6 +25,8 @@ from schemas.programas import (
     EtapaProcessoUpdate,
     EtapaProcessoResponse,
 )
+from crud import solicitacao_vinculo as crud_solicitacao
+from schemas.solicitacao_vinculo import SolicitacaoVinculoCreate, SolicitacaoVinculoResponse
 
 programas_router = APIRouter(prefix="/programas", tags=["Programas"])
 
@@ -67,30 +69,106 @@ def get_meus_programas(
     return crud.programas_do_coordenador(db, usuario_logado.id)
 
 
-@programas_router.get("/catalogo", response_model=list[ProgramaCapesResponse])
+# ------------------------------------------------------------------
+# GET /programas/catalogo — programas SEM coordenador (pra solicitar vínculo)
+# ------------------------------------------------------------------
+@programas_router.get("/catalogo", response_model=list[ProgramaListItem])
 def get_catalogo_programas(
     instituicao_id: int,
     area_avaliacao_id: int,
     area_conhecimento_id: Optional[int] = None,
     db: Session = Depends(pegar_sessao),
 ):
-    query = db.query(ProgramaCapes).filter(
-        ProgramaCapes.instituicao_id == instituicao_id,
-        ProgramaCapes.area_avaliacao_id == area_avaliacao_id,
+    query = db.query(Programa).filter(
+        Programa.instituicao_id == instituicao_id,
+        Programa.area_avaliacao_id == area_avaliacao_id,
+        Programa.coordenador_id.is_(None),
     )
     if area_conhecimento_id:
-        query = query.filter(ProgramaCapes.area_conhecimento_id == area_conhecimento_id)
-    return query.order_by(ProgramaCapes.nome).all()
+        query = query.filter(Programa.area_conhecimento_id == area_conhecimento_id)
+    return query.order_by(Programa.nome).all()
+
+
+# ------------------------------------------------------------------
+# GET /programas/contagem — precisa vir ANTES de /{programa_id},
+# senão o FastAPI tenta converter "contagem" pra int e quebra.
+# ------------------------------------------------------------------
+@programas_router.get("/contagem")
+def contar_programas(
+    nivel: Optional[str] = None,
+    instituicao_id: Optional[int] = None,
+    area_avaliacao_id: Optional[int] = None,
+    area_conhecimento_id: Optional[int] = None,
+    nota_capes_min: Optional[int] = None,
+    nome: Optional[str] = None,
+    grande_area_id: Optional[int] = None,
+    db: Session = Depends(pegar_sessao),
+):
+    total = crud.contar_programas(
+        db,
+        nivel=nivel,
+        instituicao_id=instituicao_id,
+        area_avaliacao_id=area_avaliacao_id,
+        area_conhecimento_id=area_conhecimento_id,
+        nota_capes_min=nota_capes_min,
+        nome=nome,
+        grande_area_id=grande_area_id,
+    )
+    return {"total": total}
+
+
 # ------------------------------------------------------------------
 # GET /programas — busca/listagem (usada pelo estudante)
+# ÚNICA definição agora — a antiga duplicada foi removida.
 # ------------------------------------------------------------------
 @programas_router.get("", response_model=list[ProgramaListItem])
 def listar_programas(
     nivel: Optional[str] = None,
     instituicao_id: Optional[int] = None,
+    area_avaliacao_id: Optional[int] = None,
+    area_conhecimento_id: Optional[int] = None,
+    nota_capes_min: Optional[int] = None,
+    nome: Optional[str] = None,
+    limit: Optional[int] = None,
+    offset: Optional[int] = None,
     db: Session = Depends(pegar_sessao),
 ):
-    return crud.listar_programas(db, nivel=nivel, instituicao_id=instituicao_id)
+    return crud.listar_programas(
+        db,
+        nivel=nivel,
+        instituicao_id=instituicao_id,
+        area_avaliacao_id=area_avaliacao_id,
+        area_conhecimento_id=area_conhecimento_id,
+        nota_capes_min=nota_capes_min,
+        nome=nome,
+        limit=limit,
+        offset=offset,
+    )
+
+
+# ------------------------------------------------------------------
+# POST /programas/{programa_id}/solicitar-vinculo
+# ------------------------------------------------------------------
+@programas_router.post(
+    "/{programa_id}/solicitar-vinculo",
+    response_model=SolicitacaoVinculoResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def solicitar_vinculo(
+    programa_id: int,
+    dados: SolicitacaoVinculoCreate,
+    db: Session = Depends(pegar_sessao),
+    usuario_logado: Usuario = Depends(exigir_coordenador),
+):
+    programa = crud.buscar_programa(db, programa_id)
+    if programa is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Programa não encontrado")
+    if programa.coordenador_id is not None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Este programa já tem um coordenador vinculado")
+    if crud_solicitacao.ja_tem_pendente(db, usuario_logado.id):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Você já tem uma solicitação pendente")
+
+    return crud_solicitacao.criar(db, programa_id, usuario_logado.id)
 
 
 # ------------------------------------------------------------------

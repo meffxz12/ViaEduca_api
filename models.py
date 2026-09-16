@@ -9,6 +9,7 @@ from sqlalchemy import (
     Enum,
     ForeignKey,
     Integer,
+    JSON,
     SmallInteger,
     String,
     Text,
@@ -16,6 +17,7 @@ from sqlalchemy import (
     text,
     event,
 )
+
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from sqlalchemy import text
@@ -47,7 +49,7 @@ class AreaAvaliacao(Base):
     id_capes        = Column(Integer, nullable=False, unique=True)
     nome            = Column(String(150), nullable=False)
     sincronizado_em = Column(DateTime, nullable=False, default=datetime.now)
-
+    grande_area_id = Column(Integer, ForeignKey("grandes_areas.id"), nullable=True)
     # relationships
     areas_conhecimento = relationship("AreaConhecimento", back_populates="area_avaliacao")
     programas          = relationship("Programa", back_populates="area_avaliacao",
@@ -106,7 +108,7 @@ class Usuario(Base):
     UUID(as_uuid=True),
     primary_key=True,
     server_default=text("gen_random_uuid()"))
-    tipo          = Column(Enum("estudante", "coordenador", name="tipo_usuario"), nullable=False)
+    tipo = Column(Enum("estudante", "coordenador", "admin", name="tipo_usuario"), nullable=False)
     nome_completo = Column(String(150), nullable=False)
     cpf           = Column(String(11), nullable=False, unique=True)
     email         = Column(String(150), nullable=False, unique=True)
@@ -115,7 +117,7 @@ class Usuario(Base):
     foto_url      = Column(String(255))
     criado_em     = Column(DateTime, nullable=False, default=datetime.now)
     atualizado_em = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
-
+   
     # relationships (1-pra-1, dependendo do tipo)
     estudante    = relationship("Estudante", back_populates="usuario", uselist=False)
     coordenador  = relationship("Coordenador", back_populates="usuario", uselist=False)
@@ -184,7 +186,8 @@ class Coordenador(Base):
     instituicao = relationship("Instituicao", back_populates="coordenadores")
     area_avaliacao = relationship("AreaAvaliacao")
     area_conhecimento = relationship("AreaConhecimento")
-
+    # dentro da classe Coordenador
+    solicitacoes_vinculo = relationship("SolicitacaoVinculo", foreign_keys="SolicitacaoVinculo.coordenador_id")
     programas = relationship("Programa", back_populates="coordenador")
 
 # ---------------------------------------------------------------------------
@@ -213,7 +216,7 @@ class Programa(Base):
     area_conhecimento_id = Column(Integer, ForeignKey("areas_conhecimento.id"))
     nota_capes           = Column(SmallInteger)
     criado_em            = Column(DateTime, nullable=False, default=datetime.now)
-
+    
     # relationships
     coordenador      = relationship("Coordenador", back_populates="programas")
     instituicao      = relationship("Instituicao", back_populates="programas")
@@ -409,3 +412,37 @@ class ProgramaCapes(Base):
     area_conhecimento_id = Column(Integer, ForeignKey("areas_conhecimento.id"))
 
     sincronizado_em = Column(DateTime)
+
+class SolicitacaoVinculo(Base):
+    """
+    Pedido do coordenador pra assumir um Programa que já existe
+    (populado da CAPES) mas ainda não tem coordenador vinculado.
+    Fica pendente até um admin aprovar ou rejeitar.
+    """
+    __tablename__ = "solicitacoes_vinculo"
+    __table_args__ = (
+        UniqueConstraint("programa_id", "coordenador_id", name="uq_solicitacao_programa_coordenador"),
+    )
+
+    id             = Column(Integer, primary_key=True, autoincrement=True)
+    programa_id    = Column(Integer, ForeignKey("programas.id", ondelete="CASCADE"), nullable=False)
+    coordenador_id = Column(UUID(as_uuid=True), ForeignKey("coordenadores.usuario_id", ondelete="CASCADE"),
+                            nullable=False)
+    status = Column(
+        Enum("pendente", "aprovado", "rejeitado", name="status_solicitacao_vinculo"),
+        nullable=False,
+        default="pendente",
+    )
+    criado_em    = Column(DateTime, nullable=False, default=datetime.now)
+    decidido_em  = Column(DateTime, nullable=True)
+    decidido_por = Column(UUID(as_uuid=True), ForeignKey("usuarios.id"), nullable=True)
+    motivo_rejeicao = Column(String(200), nullable=True)
+
+    linhas_pesquisa_rascunho = Column(JSON, nullable=True)
+    etapas_processo_rascunho = Column(JSON, nullable=True)
+
+    programa    = relationship("Programa")
+    coordenador = relationship("Coordenador", back_populates="solicitacoes_vinculo")
+
+    def __repr__(self):
+        return f"<SolicitacaoVinculo programa={self.programa_id} coordenador={self.coordenador_id} status={self.status}>"

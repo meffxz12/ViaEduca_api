@@ -55,17 +55,11 @@ def cadastrar_coordenador(
     if crud.celular_existe(db, dados.celular):
         raise HTTPException(400, "Celular já cadastrado")
 
-    try:
-        coordenador = crud.criar_coordenador(db, dados)
-        crud_programas.criar_programa(db, coordenador.id, dados.programa)
-        db.commit()
-    except Exception:
-        db.rollback()
-        raise
+    coordenador = crud.criar_coordenador(db, dados)
+    db.commit()
 
     token = criar_token(str(coordenador.id), "coordenador")
     return TokenResponse(access_token=token, tipo_usuario="coordenador")
-
 # ------------------------------------------------------------------
 # POST /auth/login
 # ------------------------------------------------------------------

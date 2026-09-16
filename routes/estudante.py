@@ -19,6 +19,7 @@ from schemas.estudante import (
     ProgramaFavoritoResponse,
     NotificacaoResponse,
     ContadorNotificacoesResponse,
+    EstudantePerfilResponse,
 )
 
 estudante_router = APIRouter(prefix="/estudante", tags=["Estudante"])
@@ -172,4 +173,26 @@ def _montar_notificacao_response(notificacao) -> NotificacaoResponse:
         edital_titulo=edital.titulo if edital else None,
         programa_id=programa.id if programa else None,
         programa_nome=programa.nome if programa else None,
+    )
+
+# ------------------------------------------------------------------
+# GET /estudante/perfil — dados do estudante logado (usado pra
+# filtrar a home pela grande área dele)
+# ------------------------------------------------------------------
+@estudante_router.get("/perfil", response_model=EstudantePerfilResponse)
+def get_perfil(
+    db: Session = Depends(pegar_sessao),
+    usuario_logado: Usuario = Depends(exigir_estudante),
+):
+    estudante = crud.buscar_estudante(db, usuario_logado.id)
+    if estudante is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Estudante não encontrado")
+
+    return EstudantePerfilResponse(
+        id=usuario_logado.id,
+        nome_completo=usuario_logado.nome_completo,
+        email=usuario_logado.email,
+        titulacao_atual=estudante.titulacao_atual,
+        area_titulacao_id=estudante.area_titulacao_id,
+        area_titulacao_nome=estudante.grande_area.nome if estudante.grande_area else None,
     )

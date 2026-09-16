@@ -6,7 +6,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session, joinedload
 
-from models import Programa, LinhaPesquisa, EtapaProcesso
+from models import Programa, LinhaPesquisa, EtapaProcesso, AreaAvaliacao
 from schemas.programas import ProgramaCreate, ProgramaUpdate
 
 
@@ -36,9 +36,6 @@ def validar_novo_programa(
     Um coordenador pode acumular mestrado (MP/MA) e doutorado (D) do MESMO
     PPG (mesmo nome + mesma instituição, nível diferente). Não pode
     cadastrar um segundo programa de nome/instituição diferentes.
-    Retorna uma mensagem de erro se a regra for violada, ou None se ok.
-    (O nível duplicado — dois programas com o mesmo nível — já é barrado
-    pelo unique(instituicao_id, nome, nivel) lá no banco.)
     """
     existentes = (
         db.query(Programa).filter(Programa.coordenador_id == coordenador_id).all()
@@ -103,21 +100,79 @@ def programas_do_coordenador(db: Session, coordenador_id: uuid.UUID) -> list[Pro
     ).all()
 
 
+def _aplicar_filtros(
+    query,
+    nivel=None,
+    instituicao_id=None,
+    area_avaliacao_id=None,
+    area_conhecimento_id=None,
+    nota_capes_min=None,
+    nome=None,
+    grande_area_id=None,   # <-- novo
+):
+    if grande_area_id is not None:
+        query = query.join(AreaAvaliacao, Programa.area_avaliacao_id == AreaAvaliacao.id)
+        query = query.filter(AreaAvaliacao.grande_area_id == grande_area_id)
+    if nivel is not None:
+        query = query.filter(Programa.nivel == nivel)
+    if instituicao_id is not None:
+        query = query.filter(Programa.instituicao_id == instituicao_id)
+    if area_avaliacao_id is not None:
+        query = query.filter(Programa.area_avaliacao_id == area_avaliacao_id)
+    if area_conhecimento_id is not None:
+        query = query.filter(Programa.area_conhecimento_id == area_conhecimento_id)
+    if nota_capes_min is not None:
+        query = query.filter(Programa.nota_capes >= nota_capes_min)
+    if nome:
+        query = query.filter(Programa.nome.ilike(f"%{nome}%"))
+    return query
+
 def listar_programas(
     db: Session,
     nivel: Optional[str] = None,
     instituicao_id: Optional[int] = None,
-    grande_area_id: Optional[int] = None,
+    area_avaliacao_id: Optional[int] = None,
+    area_conhecimento_id: Optional[int] = None,
+    nota_capes_min: Optional[int] = None,
+    nome: Optional[str] = None,
+    limit: Optional[int] = None,
+    offset: Optional[int] = None,
+    grande_area_id: Optional[int] = None,   
 ) -> list[Programa]:
     query = db.query(Programa).options(
         joinedload(Programa.linhas_pesquisa),
         joinedload(Programa.etapas_processo),
     )
-    if nivel is not None:
-        query = query.filter(Programa.nivel == nivel)
-    if instituicao_id is not None:
-        query = query.filter(Programa.instituicao_id == instituicao_id)
-    return query.order_by(Programa.nome).all()
+    query = _aplicar_filtros(
+        query, nivel, instituicao_id, area_avaliacao_id,
+        area_conhecimento_id, nota_capes_min, nome,
+        grande_area_id=grande_area_id,
+    )
+    query = query.order_by(Programa.nome)
+    if offset is not None:
+        query = query.offset(offset)
+    if limit is not None:
+        query = query.limit(limit)
+    return query.all()
+
+
+def contar_programas(
+    db: Session,
+    nivel: Optional[str] = None,
+    instituicao_id: Optional[int] = None,
+    area_avaliacao_id: Optional[int] = None,
+    area_conhecimento_id: Optional[int] = None,
+    nota_capes_min: Optional[int] = None,
+    nome: Optional[str] = None,
+    grande_area_id: Optional[int] = None,  
+) -> int:
+    query = db.query(Programa)
+    query = _aplicar_filtros(
+        query, nivel, instituicao_id, area_avaliacao_id,
+        area_conhecimento_id, nota_capes_min, nome,
+        grande_area_id=grande_area_id,  
+    )
+    return query.count()
 
 def atualizar_programa(
     db: Session,

@@ -109,9 +109,9 @@ class CoordenadorCreate(BaseModel):
     area_avaliacao_id: Optional[int] = None
     area_conhecimento_id: Optional[int] = None
 
-    # Programa vem junto no mesmo cadastro — 1 requisição só,
-    # já que ainda não existe coordenador autenticado antes deste ponto
-    programa: ProgramaCreate
+    # REMOVIDO: programa: ProgramaCreate
+    # Agora o cadastro só cria a conta. O programa é escolhido
+    # depois, via POST /programas/{id}/solicitar-vinculo.
 
     @field_validator("cpf")
     @classmethod

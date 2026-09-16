@@ -4,6 +4,16 @@ from fastapi.staticfiles import StaticFiles
 from routes import usuario, areas, programas, edital, estudante, coordenador, instituicao, capes
 app = FastAPI()
 from routes.edital import edital_router
+from routes.admin import admin_router
+app.include_router(admin_router)
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 app.include_router(usuario.auth_router)

@@ -56,3 +56,8 @@ def exigir_estudante(usuario=Depends(get_usuario_atual)):
     if usuario.tipo != "estudante":
         raise HTTPException(status_code=403, detail="Apenas estudantes podem fazer isso")
     return usuario
+
+def exigir_admin(usuario=Depends(get_usuario_atual)):
+    if usuario.tipo != "admin":
+        raise HTTPException(status_code=403, detail="Apenas administradores podem fazer isso")
+    return usuario

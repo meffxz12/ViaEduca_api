@@ -23,6 +23,8 @@ def _montar_perfil(db: Session, usuario: Usuario, coordenador) -> CoordenadorPer
         foto_url=usuario.foto_url,
         email_institucional=coordenador.email_institucional,
         instituicao_id=coordenador.instituicao_id,
+        area_avaliacao_id=coordenador.area_avaliacao_id,       # <-- confirma que está aqui
+        area_conhecimento_id=coordenador.area_conhecimento_id, # <-- confirma que está aqui
         criado_em=usuario.criado_em,
         tem_programa=tem_programa,
     )

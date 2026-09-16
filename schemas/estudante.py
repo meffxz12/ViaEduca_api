@@ -7,8 +7,8 @@ um novo arquivo no edital de um programa favoritado).
 """
 from datetime import datetime
 from typing import Optional
-
-from pydantic import BaseModel
+from uuid import UUID
+from pydantic import BaseModel, EmailStr
 
 from schemas.programas import ProgramaListItem
 
@@ -55,3 +55,14 @@ class NotificacaoResponse(BaseModel):
 
 class ContadorNotificacoesResponse(BaseModel):
     nao_lidas: int
+
+class EstudantePerfilResponse(BaseModel):
+    id: UUID
+    nome_completo: str
+    email: EmailStr
+    titulacao_atual: Optional[str]
+    area_titulacao_id: Optional[int]
+    area_titulacao_nome: Optional[str]
+
+    class Config:
+        from_attributes = True

@@ -42,7 +42,7 @@ def criar_estudante(db: Session, dados: EstudanteCreate) -> Usuario:
 
 
 def criar_coordenador(db: Session, dados: CoordenadorCreate) -> Usuario:
-   
+
     usuario = Usuario(
         id=uuid.uuid4(),
         tipo="coordenador",
@@ -59,6 +59,8 @@ def criar_coordenador(db: Session, dados: CoordenadorCreate) -> Usuario:
         usuario_id=usuario.id,
         email_institucional=dados.email_institucional,
         instituicao_id=dados.instituicao_id,
+        area_avaliacao_id=dados.area_avaliacao_id,        # <-- adiciona
+        area_conhecimento_id=dados.area_conhecimento_id,  # <-- adiciona
     )
     db.add(coordenador)
     db.commit()

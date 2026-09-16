@@ -10,8 +10,9 @@ from typing import Optional
 
 from sqlalchemy.orm import Session, joinedload
 
-from models import ProgramaFavorito, Notificacao, Edital, Usuario
+from models import ProgramaFavorito, Notificacao, Edital, Usuario, Estudante  # <-- adiciona Estudante
 from services.firebase_service import enviar_push
+
 # ---------------------------------------------------------------------------
 # Favoritos
 # ---------------------------------------------------------------------------
@@ -153,3 +154,9 @@ def marcar_todas_lidas(db: Session, estudante_id: uuid.UUID) -> int:
     )
     db.commit()
     return atualizadas
+
+# ---------------------------------------------------------------------------
+# Perfil
+# ---------------------------------------------------------------------------
+def buscar_estudante(db: Session, usuario_id: uuid.UUID) -> Optional[Estudante]:
+    return db.query(Estudante).filter(Estudante.usuario_id == usuario_id).first()
