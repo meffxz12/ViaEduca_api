@@ -26,14 +26,13 @@ class GrandeAreaResponse(BaseModel):
 # AreasAvaliacao — coordenador escolhe no cadastro do programa
 # ---------------------------------------------------------------------------
 class AreaAvaliacaoResponse(BaseModel):
-    id:              int
-    id_capes:        int
-    nome:            str
-    sincronizado_em: datetime
+    id: int
+    id_capes: int
+    nome: str
+    grande_area_id: Optional[int] = None  # <-- adiciona
 
     class Config:
         from_attributes = True
-
 
 # ---------------------------------------------------------------------------
 # AreasConhecimento — sub-área, depende da área de avaliação escolhida

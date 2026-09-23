@@ -84,3 +84,11 @@ def atualizar_status(db: Session, edital: Edital, novo_status: str) -> Edital:
     db.commit()
     db.refresh(edital)
     return edital
+
+def atualizar_edital(db: Session, edital: Edital, dados) -> Edital:
+    campos = dados.model_dump(exclude_unset=True)
+    for campo, valor in campos.items():
+        setattr(edital, campo, valor)
+    db.commit()
+    db.refresh(edital)
+    return edital

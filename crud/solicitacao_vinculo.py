@@ -70,3 +70,11 @@ def rejeitar(db: Session, solicitacao: SolicitacaoVinculo, admin_id, motivo: str
     db.commit()
     db.refresh(solicitacao)
     return solicitacao
+
+def buscar_por_coordenador(db: Session, coordenador_id):
+    return (
+        db.query(SolicitacaoVinculo)
+        .filter(SolicitacaoVinculo.coordenador_id == coordenador_id)
+        .order_by(SolicitacaoVinculo.criado_em.desc())
+        .first()
+    )

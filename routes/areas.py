@@ -34,9 +34,11 @@ def get_grandes_areas(db: Session = Depends(pegar_sessao)):
 # GET /areas/avaliacao
 # ------------------------------------------------------------------
 @areas_router.get("/avaliacao", response_model=list[AreaAvaliacaoResponse])
-def get_areas_avaliacao(db: Session = Depends(pegar_sessao)):
-    return crud.listar_areas_avaliacao(db)
-
+def get_areas_avaliacao(
+    grande_area_id: Optional[int] = None,
+    db: Session = Depends(pegar_sessao),
+):
+    return crud.listar_areas_avaliacao(db, grande_area_id=grande_area_id)
 
 # ------------------------------------------------------------------
 # GET /areas/conhecimento
@@ -44,13 +46,11 @@ def get_areas_avaliacao(db: Session = Depends(pegar_sessao)):
 @areas_router.get("/conhecimento", response_model=list[AreaConhecimentoResponse])
 def get_areas_conhecimento(
     area_avaliacao_id: Optional[int] = None,
+    grande_area_id: Optional[int] = None,
     db: Session = Depends(pegar_sessao),
 ):
     if area_avaliacao_id is not None:
         area = crud.buscar_area_avaliacao(db, area_avaliacao_id)
         if area is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Área de avaliação não encontrada",
-            )
-    return crud.listar_areas_conhecimento(db, area_avaliacao_id)
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Área de avaliação não encontrada")
+    return crud.listar_areas_conhecimento(db, area_avaliacao_id, grande_area_id)

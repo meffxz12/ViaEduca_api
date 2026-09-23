@@ -131,6 +131,7 @@ def listar_programas(
     nome: Optional[str] = None,
     limit: Optional[int] = None,
     offset: Optional[int] = None,
+    grande_area_id: Optional[int] = None,
     db: Session = Depends(pegar_sessao),
 ):
     return crud.listar_programas(
@@ -143,8 +144,8 @@ def listar_programas(
         nome=nome,
         limit=limit,
         offset=offset,
+        grande_area_id=grande_area_id,
     )
-
 
 # ------------------------------------------------------------------
 # POST /programas/{programa_id}/solicitar-vinculo
@@ -168,8 +169,22 @@ def solicitar_vinculo(
     if crud_solicitacao.ja_tem_pendente(db, usuario_logado.id):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Você já tem uma solicitação pendente")
 
-    return crud_solicitacao.criar(db, programa_id, usuario_logado.id)
+    return crud_solicitacao.criar(
+        db, programa_id, usuario_logado.id,
+        linhas_pesquisa=dados.linhas_pesquisa,      
+        etapas_processo=dados.etapas_processo,       
+    )
 
+
+@programas_router.get("/minha-solicitacao", response_model=SolicitacaoVinculoResponse)
+def get_minha_solicitacao(
+    db: Session = Depends(pegar_sessao),
+    usuario_logado: Usuario = Depends(exigir_coordenador),
+):
+    solicitacao = crud_solicitacao.buscar_por_coordenador(db, usuario_logado.id)
+    if solicitacao is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Nenhuma solicitação encontrada")
+    return solicitacao
 
 # ------------------------------------------------------------------
 # GET /programas/{programa_id} — detalhe (usado pelo estudante)

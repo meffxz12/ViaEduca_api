@@ -7,6 +7,10 @@ from routes.edital import edital_router
 from routes.admin import admin_router
 app.include_router(admin_router)
 from fastapi.middleware.cors import CORSMiddleware
+import os
+from fastapi.staticfiles import StaticFiles
+from dotenv import load_dotenv
+load_dotenv()
 
 app.add_middleware(
     CORSMiddleware,
@@ -15,7 +19,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
+os.makedirs("uploads/editais", exist_ok=True)
+app.mount("/arquivos", StaticFiles(directory="uploads"), name="arquivos")
 app.include_router(usuario.auth_router)
 app.include_router(areas.areas_router)
 app.include_router(programas.programas_router)

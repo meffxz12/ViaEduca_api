@@ -30,3 +30,9 @@ class EditalResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class EditalUpdate(BaseModel):
+    titulo: Optional[str] = None
+    descricao: Optional[str] = None
+    data_inicio_inscricao: Optional[str] = None
+    data_fim_inscricao: Optional[str] = None

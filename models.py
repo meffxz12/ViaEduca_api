@@ -318,7 +318,7 @@ class ArquivoEdital(Base):
     titulo       = Column(String(200), nullable=False)
     arquivo_url  = Column(String(255), nullable=False)
     publicado_em = Column(DateTime, nullable=False, default=datetime.now)
-
+    alerta_sonoro = Column(Boolean, nullable=False, default=False) 
     # relationships
     edital        = relationship("Edital", back_populates="arquivos")
     etapa         = relationship("EtapaProcesso", back_populates="arquivos_edital")

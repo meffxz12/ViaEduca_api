@@ -6,9 +6,7 @@ sincronização diária com a API Sucupira (areas_avaliacao / areas_conhecimento
 então este módulo só tem operações de leitura.
 """
 from typing import Optional
-
 from sqlalchemy.orm import Session
-
 from models import GrandeAreas, AreaAvaliacao, AreaConhecimento
 
 # ---------------------------------------------------------------------------
@@ -25,8 +23,11 @@ def buscar_grande_area(db: Session, grande_area_id: int) -> Optional[GrandeAreas
 # ---------------------------------------------------------------------------
 # AreasAvaliacao
 # ---------------------------------------------------------------------------
-def listar_areas_avaliacao(db: Session) -> list[AreaAvaliacao]:
-    return db.query(AreaAvaliacao).order_by(AreaAvaliacao.nome).all()
+def listar_areas_avaliacao(db: Session, grande_area_id: Optional[int] = None):
+    query = db.query(AreaAvaliacao)
+    if grande_area_id is not None:
+        query = query.filter(AreaAvaliacao.grande_area_id == grande_area_id)
+    return query.order_by(AreaAvaliacao.nome).all()
 
 
 def buscar_area_avaliacao(db: Session, area_avaliacao_id: int) -> Optional[AreaAvaliacao]:
@@ -39,16 +40,15 @@ def buscar_area_avaliacao(db: Session, area_avaliacao_id: int) -> Optional[AreaA
 def listar_areas_conhecimento(
     db: Session,
     area_avaliacao_id: Optional[int] = None,
-) -> list[AreaConhecimento]:
-    """
-    Lista as áreas de conhecimento. Se `area_avaliacao_id` for informado,
-    filtra só as sub-áreas daquela área de avaliação — é o caso de uso
-    principal no Flutter: coordenador escolhe a área de avaliação e o
-    segundo dropdown (conhecimento) é recarregado filtrado por ela.
-    """
+    grande_area_id: Optional[int] = None,
+):
     query = db.query(AreaConhecimento)
     if area_avaliacao_id is not None:
         query = query.filter(AreaConhecimento.area_avaliacao_id == area_avaliacao_id)
+    if grande_area_id is not None:
+        query = query.join(
+            AreaAvaliacao, AreaConhecimento.area_avaliacao_id == AreaAvaliacao.id
+        ).filter(AreaAvaliacao.grande_area_id == grande_area_id)
     return query.order_by(AreaConhecimento.nome).all()
 
 

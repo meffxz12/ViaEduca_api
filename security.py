@@ -2,9 +2,12 @@ from datetime import datetime, timedelta, timezone
 
 from jose import jwt, JWTError
 from passlib.context import CryptContext
+import os
 
 
-SECRET_KEY = "MEUAMRZNHDXEUTPGTUMNGC1212"
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise Exception("SECRET_KEY não encontrada no .env")
 ALGORITHM = "HS256"
 
 
