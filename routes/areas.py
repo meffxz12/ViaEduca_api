@@ -1,12 +1,4 @@
-"""
-routes/areas.py — dropdowns de área de avaliação/conhecimento e grandes áreas
 
-Endpoints:
-    GET /areas/grandes-areas               -> lista estática (cadastro do estudante)
-    GET /areas/avaliacao                   -> lista sincronizada da Sucupira
-    GET /areas/conhecimento                -> lista sincronizada da Sucupira
-    GET /areas/conhecimento?area_avaliacao_id=  -> filtrada (2º dropdown do Flutter)
-"""
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status

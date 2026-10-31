@@ -1,16 +1,10 @@
-"""
-crud/estudante.py — favoritar programa e consultar notificações
-
-As notificações são criadas por um trigger no banco (INSERT em
-arquivos_edital -> INSERT em notificacoes pra quem favoritou o programa).
-Este módulo só lê e marca como lida — nunca insere notificação.
-"""
 import uuid
 from typing import Optional
 
 from sqlalchemy.orm import Session, joinedload
 
-from models import ProgramaFavorito, Notificacao, Edital, Usuario, Estudante  # <-- adiciona Estudante
+from models import ProgramaFavorito, Notificacao, Edital, Usuario, Estudante, Programa
+from services.notificador import cortar
 from services.firebase_service import enviar_push
 
 # ---------------------------------------------------------------------------
@@ -45,17 +39,24 @@ def favoritar_programa(
     favorito = ProgramaFavorito(estudante_id=estudante_id, programa_id=programa_id)
     db.add(favorito)
 
-    edital_aberto = (
-        db.query(Edital)
-        .filter(Edital.programa_id == programa_id, Edital.status == "aberto")
-        .order_by(Edital.criado_em.desc())
-        .first()
-    )
-    if edital_aberto is not None:
-        titulo_notif = f"Edital aberto: {edital_aberto.titulo}"
+    programa = db.query(Programa).filter(Programa.id == programa_id).first()
+
+    # Só avisa "inscrições abertas" se o PROGRAMA está aberto; usa o edital mais recente.
+    # (edital não abre nem fecha: quem abre é o programa)
+    edital_recente = None
+    if programa is not None and programa.programa_aberto:
+        edital_recente = (
+            db.query(Edital)
+            .filter(Edital.programa_id == programa_id, Edital.status != "rascunho")
+            .order_by(Edital.criado_em.desc())
+            .first()
+        )
+
+    if edital_recente is not None:
+        titulo_notif = cortar(f"Inscrições abertas: {edital_recente.titulo}")
         db.add(Notificacao(
             estudante_id=estudante_id,
-            edital_id=edital_aberto.id,
+            edital_id=edital_recente.id,
             titulo=titulo_notif,
         ))
 

@@ -1,6 +1,4 @@
-"""
-schemas/edital.py — contratos de entrada/saída para Edital
-"""
+
 from datetime import date, datetime
 from typing import Optional
 
@@ -12,6 +10,7 @@ class EditalCreate(BaseModel):
     descricao: Optional[str] = None
     data_inicio_inscricao: Optional[date] = None
     data_fim_inscricao: Optional[date] = None
+    url: Optional[str] = None
 
 
 class EditalUpdateStatus(BaseModel):
@@ -27,6 +26,7 @@ class EditalResponse(BaseModel):
     data_fim_inscricao: Optional[date]
     status: str
     criado_em: datetime
+    url: Optional[str]
 
     class Config:
         from_attributes = True
@@ -36,3 +36,4 @@ class EditalUpdate(BaseModel):
     descricao: Optional[str] = None
     data_inicio_inscricao: Optional[str] = None
     data_fim_inscricao: Optional[str] = None
+    url: Optional[str] = None

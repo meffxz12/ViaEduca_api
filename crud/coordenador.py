@@ -1,10 +1,4 @@
-"""
-crud/coordenador.py — leitura e atualização do perfil do coordenador
 
-O perfil é composto de dois models: Usuario (dados comuns: celular,
-foto_url) e Coordenador (dados específicos: email_institucional,
-instituicao_id). Esse módulo trata os dois juntos.
-"""
 import uuid
 from typing import Optional
 

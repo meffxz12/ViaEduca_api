@@ -1,7 +1,4 @@
-"""
-crud/linha_pesquisa.py — gerenciar linhas de pesquisa de um programa
-depois do cadastro inicial (que é feito em lote via ProgramaCreate)
-"""
+
 from typing import Optional
 
 from sqlalchemy.orm import Session

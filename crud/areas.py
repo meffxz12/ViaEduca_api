@@ -1,10 +1,3 @@
-"""
-crud/areas.py — consultas de leitura para os dropdowns de área
-
-Todas as tabelas aqui são alimentadas por seed (grandes_areas) ou pela
-sincronização diária com a API Sucupira (areas_avaliacao / areas_conhecimento),
-então este módulo só tem operações de leitura.
-"""
 from typing import Optional
 from sqlalchemy.orm import Session
 from models import GrandeAreas, AreaAvaliacao, AreaConhecimento
@@ -34,7 +27,7 @@ def buscar_area_avaliacao(db: Session, area_avaliacao_id: int) -> Optional[AreaA
     return db.query(AreaAvaliacao).filter(AreaAvaliacao.id == area_avaliacao_id).first()
 
 
-# ---------------------------------------------------------------------------
+# -------------------------------------------------------------------------
 # AreasConhecimento
 # ---------------------------------------------------------------------------
 def listar_areas_conhecimento(

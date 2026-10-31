@@ -1,6 +1,4 @@
-"""
-schemas/usuario.py — contratos de entrada e saída da API para usuários
-"""
+
 import re
 from datetime import datetime
 from typing import Optional
@@ -79,7 +77,7 @@ class EstudanteCreate(BaseModel):
     nome_completo:  str
     cpf:            str
     email:          EmailStr
-    senha:          str = Field(..., min_length=6)
+    senha:          str = Field(..., min_length=8)
     celular:        Optional[str] = None
     titulacao_atual: Optional[str] = None   # "Graduação" | "Especialização" | "Mestrado" | "Doutorado"
     area_titulacao_id: Optional[int] = None    # FK pra areas_titulacao (lista estática)

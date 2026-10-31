@@ -56,6 +56,19 @@ def aprovar(db: Session, solicitacao: SolicitacaoVinculo, admin_id):
     solicitacao.decidido_em = datetime.now()
     solicitacao.decidido_por = admin_id
 
+    # Outros coordenadores que tinham pedido o MESMO programa: fecha os pedidos
+    # (o programa agora tem dono), com o motivo já preenchido pra eles verem.
+    concorrentes = db.query(SolicitacaoVinculo).filter(
+        SolicitacaoVinculo.programa_id == programa.id,
+        SolicitacaoVinculo.status == "pendente",
+        SolicitacaoVinculo.id != solicitacao.id,
+    ).all()
+    for outra in concorrentes:
+        outra.status = "rejeitado"
+        outra.decidido_em = datetime.now()
+        outra.decidido_por = admin_id
+        outra.motivo_rejeicao = "Este programa foi vinculado a outro coordenador."
+
     db.commit()
     db.refresh(solicitacao)
     return solicitacao

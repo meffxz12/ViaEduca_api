@@ -1,6 +1,4 @@
-"""
-routes/coordenador.py — perfil do coordenador (ver/atualizar)
-"""
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 

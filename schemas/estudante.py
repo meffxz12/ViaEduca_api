@@ -1,10 +1,4 @@
-"""
-schemas/estudante.py — contratos de entrada e saída da API pro estudante
 
-Cobre: busca de programa, favoritar/desfavoritar e notificações (que são
-geradas automaticamente por um trigger no banco quando o coordenador posta
-um novo arquivo no edital de um programa favoritado).
-"""
 from datetime import datetime
 from typing import Optional
 from uuid import UUID

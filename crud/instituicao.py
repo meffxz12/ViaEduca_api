@@ -1,11 +1,4 @@
-"""
-crud/instituicoes.py — leitura de instituições
 
-Sem cadastro por essa API por enquanto (assumindo que instituições são
-inseridas via seed/admin, igual grandes_areas). Se você quiser permitir
-o coordenador cadastrar uma instituição nova direto pelo app, me avisa
-que eu adiciono o POST.
-"""
 from typing import Optional
 
 from sqlalchemy.orm import Session

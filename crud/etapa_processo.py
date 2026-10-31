@@ -1,7 +1,4 @@
-"""
-crud/etapa_processo.py — gerenciar etapas do processo seletivo de um
-programa depois do cadastro inicial (que é feito em lote via ProgramaCreate)
-"""
+
 from typing import Optional
 
 from sqlalchemy.orm import Session

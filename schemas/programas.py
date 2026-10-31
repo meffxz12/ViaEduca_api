@@ -1,11 +1,3 @@
-"""
-schemas/programa.py — contratos de entrada e saída da API para o programa
-
-Fluxo: coordenador cadastra o programa UMA VEZ, logo após o cadastro de
-perfil (tela 5 do Flutter). O cadastro é feito num único request que já
-inclui as listas dinâmicas de linhas de pesquisa e etapas do processo
-seletivo.
-"""
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
@@ -78,10 +70,11 @@ class ProgramaCreate(BaseModel):
     area_avaliacao_id: int
     area_conhecimento_id: Optional[int] = None
 
-    nota_capes: Optional[int] = Field(
+    # Texto, não número: a CAPES às vezes reporta conceito não-numérico
+    # (ex: "A") pra programas ainda sem nota definida na escala 1-7.
+    nota_capes: Optional[str] = Field(
         default=None,
-        ge=1,
-        le=7
+        max_length=2,
     )
 
     linhas_pesquisa: list[LinhaPesquisaCreate] = Field(default_factory=list)
@@ -108,12 +101,15 @@ class ProgramaCreate(BaseModel):
 # criar endpoints próprios (POST/DELETE) pra cada uma se precisar editar
 # item a item, em vez de substituir a lista inteira.
 # ---------------------------------------------------------------------------
+# 'nome' e 'id_capes' saíram daqui de propósito: vêm da CAPES e a sincronização
+# diária usa o id_capes pra achar o programa. Se o coordenador pudesse trocar,
+# poderia apontar pro id de outro programa (erro 500 por duplicidade) ou
+# desalinhar o programa da base da CAPES. Campos extras no corpo são
+# ignorados pelo Pydantic, então o app antigo não quebra — só não altera isso.
 class ProgramaUpdate(BaseModel):
-    nome:                 Optional[str] = None
-    id_capes:             Optional[str] = None
     area_avaliacao_id:    Optional[int] = None
     area_conhecimento_id: Optional[int] = None
-    nota_capes:           Optional[int] = Field(default=None, ge=1, le=7)
+    nota_capes:           Optional[str] = Field(default=None, max_length=2)
     programa_aberto:      Optional[bool] = None
 
 # ---------------------------------------------------------------------------
@@ -121,14 +117,14 @@ class ProgramaUpdate(BaseModel):
 # ---------------------------------------------------------------------------
 class ProgramaResponse(BaseModel):
     id:                   int
-    coordenador_id:       UUID
+    coordenador_id:       Optional[UUID] = None   # programa sem coordenador ainda
     instituicao_id:       int
     nome:                 str
     id_capes:             Optional[str]
     nivel:                str
     area_avaliacao_id:    Optional[int]
     area_conhecimento_id: Optional[int]
-    nota_capes:           Optional[int]
+    nota_capes:           Optional[str]
     criado_em:            datetime
     programa_aberto: bool
 
@@ -146,7 +142,7 @@ class ProgramaListItem(BaseModel):
     id:                     int
     nome:                   str
     nivel:                  str
-    nota_capes:             Optional[int]
+    nota_capes:             Optional[str]
     instituicao_id:         int
     programa_aberto:        bool
 
@@ -162,7 +158,7 @@ class ProgramaCapesResponse(BaseModel):
     nome:                   str
     codigo:                 Optional[str]
     grau:                   Optional[str]
-    conceito:               Optional[int]
+    conceito:               Optional[str]
     situacao:               Optional[str]
     instituicao_id:         Optional[int]
     area_avaliacao_id:      Optional[int]

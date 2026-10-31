@@ -1,10 +1,4 @@
-"""
-routes/estudante.py — busca de programa, favoritar e notificações
 
-Todas as rotas exigem estudante logado (Depends(exigir_estudante)), já
-que a busca marca `favoritado` por estudante e favoritos/notificações
-são sempre pessoais.
-"""
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status

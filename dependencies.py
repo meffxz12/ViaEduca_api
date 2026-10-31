@@ -1,15 +1,14 @@
-"""
-dependencies.py — injeções de dependência reutilizáveis
-"""
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from jose import JWTError
 from sqlalchemy.orm import Session
 
 from database import SessionLocal
 from security import decodificar_token
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+# igual ao de cima, mas NÃO dá erro se não vier token (rotas públicas que
+# mostram mais coisas pra quem está logado)
+oauth2_scheme_opcional = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
 
 
 def pegar_sessao():
@@ -25,25 +24,37 @@ def get_usuario_atual(
     db: Session = Depends(pegar_sessao),
 ):
     """Retorna o Usuario logado ou levanta 401."""
-    from models import Usuario  # import local evita circular
+    from models import Usuario 
 
     credencial_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Token inválido ou expirado",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    try:
-        payload = decodificar_token(token)
-        usuario_id: str = payload.get("sub")
-        if not usuario_id:
-            raise credencial_exception
-    except JWTError:
+    payload = decodificar_token(token)
+    if not payload or not payload.get("sub"):
         raise credencial_exception
+    usuario_id: str = payload["sub"]
 
     usuario = db.query(Usuario).filter(Usuario.id == usuario_id).first()
     if not usuario:
         raise credencial_exception
     return usuario
+
+
+def get_usuario_opcional(
+    token: str | None = Depends(oauth2_scheme_opcional),
+    db: Session = Depends(pegar_sessao),
+):
+    """Usuario logado, ou None se não mandou token / token inválido (nunca dá erro)."""
+    from models import Usuario
+
+    if not token:
+        return None
+    payload = decodificar_token(token)
+    if not payload or not payload.get("sub"):
+        return None
+    return db.query(Usuario).filter(Usuario.id == payload["sub"]).first()
 
 
 def exigir_coordenador(usuario=Depends(get_usuario_atual)):

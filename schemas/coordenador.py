@@ -1,11 +1,4 @@
-"""
-schemas/coordenador.py — contratos de entrada e saída da API para o perfil do coordenador
 
-Dados básicos (nome, email, cpf) já foram fixados no cadastro
-(schemas/usuario.py -> CoordenadorCreate) e não são editáveis por aqui.
-Este módulo cobre só o que faz sentido editar depois: celular, foto,
-email institucional e a instituição vinculada.
-"""
 from datetime import datetime
 from typing import Optional
 from uuid import UUID

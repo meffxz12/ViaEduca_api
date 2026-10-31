@@ -1,6 +1,4 @@
-"""
-routes/instituicoes.py — dropdown de instituição (cadastro coordenador/programa)
-"""
+
 from typing import Optional
 
 from fastapi import APIRouter, Depends

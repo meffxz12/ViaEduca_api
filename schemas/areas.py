@@ -1,10 +1,4 @@
-"""
-schemas/area.py — contratos de saída da API para as áreas usadas nos dropdowns
 
-- GrandeArea: lista estática (seed no banco), usada no cadastro do estudante
-- AreaAvaliacao / AreaConhecimento: sincronizadas 1x/dia da API Sucupira,
-  usadas no cadastro do programa (coordenador)
-"""
 from datetime import datetime
 from typing import Optional
 

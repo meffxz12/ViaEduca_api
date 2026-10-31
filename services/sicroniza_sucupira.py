@@ -1,4 +1,5 @@
 from database import SessionLocal
+
 from services.capes import (
     listar_instituicoes,
     listar_areas_avaliacao,

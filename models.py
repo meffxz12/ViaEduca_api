@@ -117,12 +117,30 @@ class Usuario(Base):
     foto_url      = Column(String(255))
     criado_em     = Column(DateTime, nullable=False, default=datetime.now)
     atualizado_em = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
-   
+
     # relationships (1-pra-1, dependendo do tipo)
-    estudante    = relationship("Estudante", back_populates="usuario", uselist=False)
-    coordenador  = relationship("Coordenador", back_populates="usuario", uselist=False)
+    # cascade="all, delete-orphan" + passive_deletes=True: ao apagar o
+    # Usuario, o SQLAlchemy sabe que o Estudante/Coordenador tem que ser
+    # apagado junto (não só "desvinculado") e deixa o próprio banco fazer
+    # isso via ondelete="CASCADE" já configurado na FK — sem isso, apagar
+    # um Usuario quebra com AssertionError tentando zerar a FK que é a
+    # própria chave primária de estudantes/coordenadores.
+    estudante    = relationship(
+        "Estudante", back_populates="usuario", uselist=False,
+        cascade="all, delete-orphan", passive_deletes=True,
+    )
+    coordenador  = relationship(
+        "Coordenador", back_populates="usuario", uselist=False,
+        cascade="all, delete-orphan", passive_deletes=True,
+    )
 
     fcm_token = Column(String(255), nullable=True)
+
+    # e-mail confirmado por código (POST /auth/verificar-email/confirmar).
+    # Contas antigas devem ser marcadas como verdadeiras na migração.
+    email_verificado = Column(
+        Boolean, nullable=False, default=False, server_default=text("false")
+    )
     def __repr__(self):
         return f"<Usuario id={self.id} tipo={self.tipo} email={self.email!r}>"
 
@@ -136,15 +154,25 @@ class Estudante(Base):
     usuario_id      = Column(UUID(as_uuid=True), ForeignKey("usuarios.id", ondelete="CASCADE"),
                              primary_key=True)
     titulacao_atual = Column(
-        Enum("Graduação", "Especialização", "Mestrado", "Doutorado", name="titulacao")
-    )
+    Enum("Graduação incompleta", "Graduação", "Especialização", "Mestrado", "Doutorado", name="titulacao")
+)
     area_titulacao_id  = Column(Integer, ForeignKey("grandes_areas.id"))
 
     # relationships
     usuario       = relationship("Usuario", back_populates="estudante")
     grande_area   = relationship("GrandeAreas", back_populates="estudantes")
-    favoritos     = relationship("ProgramaFavorito", back_populates="estudante")
-    notificacoes  = relationship("Notificacao", back_populates="estudante")
+    # Mesmo motivo do Usuario.estudante acima: sem cascade+passive_deletes,
+    # apagar um Estudante (o que acontece em cascata ao apagar a conta)
+    # tenta zerar a FK de favoritos (que é PK composta — quebra igual) e
+    # de notificações (que é NOT NULL — vira erro de integridade).
+    favoritos     = relationship(
+        "ProgramaFavorito", back_populates="estudante",
+        cascade="all, delete-orphan", passive_deletes=True,
+    )
+    notificacoes  = relationship(
+        "Notificacao", back_populates="estudante",
+        cascade="all, delete-orphan", passive_deletes=True,
+    )
 
     def __repr__(self):
         return f"<Estudante usuario_id={self.usuario_id}>"
@@ -197,7 +225,7 @@ class Programa(Base):
     __tablename__ = "programas"
     __table_args__ = (
         UniqueConstraint("instituicao_id", "nome", "nivel", name="uq_programa_inst_nome_nivel"),
-        CheckConstraint("nota_capes BETWEEN 1 AND 7", name="ck_nota_capes"),
+
     )
 
     id                   = Column(Integer, primary_key=True, autoincrement=True)
@@ -214,9 +242,9 @@ class Programa(Base):
     )
     area_avaliacao_id    = Column(Integer, ForeignKey("areas_avaliacao.id"))
     area_conhecimento_id = Column(Integer, ForeignKey("areas_conhecimento.id"))
-    nota_capes           = Column(SmallInteger)
+    nota_capes = Column(String(2))
     criado_em            = Column(DateTime, nullable=False, default=datetime.now)
-    
+
     # relationships
     coordenador      = relationship("Coordenador", back_populates="programas")
     instituicao      = relationship("Instituicao", back_populates="programas")
@@ -293,6 +321,7 @@ class Edital(Base):
         nullable=False,
         default="aberto",
     )
+    url = Column(String(500), nullable=True)
     criado_em    = Column(DateTime, nullable=False, default=datetime.now)
     atualizado_em = Column(DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
 
@@ -318,11 +347,11 @@ class ArquivoEdital(Base):
     titulo       = Column(String(200), nullable=False)
     arquivo_url  = Column(String(255), nullable=False)
     publicado_em = Column(DateTime, nullable=False, default=datetime.now)
-    alerta_sonoro = Column(Boolean, nullable=False, default=False) 
+    alerta_sonoro = Column(Boolean, nullable=False, default=False)
     # relationships
     edital        = relationship("Edital", back_populates="arquivos")
     etapa         = relationship("EtapaProcesso", back_populates="arquivos_edital")
-   
+
 
     def __repr__(self):
         return f"<ArquivoEdital id={self.id} titulo={self.titulo!r}>"
@@ -388,7 +417,7 @@ class SyncLog(Base):
 
     def __repr__(self):
         return f"<SyncLog recurso={self.recurso!r} status={self.status} em={self.executado_em}>"
-    
+
 # Catalogo de programas vindos da CAPES/Sucupira — populado pelo sync diário.
 class ProgramaCapes(Base):
     """
@@ -446,3 +475,26 @@ class SolicitacaoVinculo(Base):
 
     def __repr__(self):
         return f"<SolicitacaoVinculo programa={self.programa_id} coordenador={self.coordenador_id} status={self.status}>"
+
+
+# ---------------------------------------------------------------------------
+# Códigos de 6 dígitos — verificação de e-mail e "esqueci a senha"
+# (guarda só o HASH do código; sem relationship de propósito: o ondelete
+#  CASCADE do banco apaga os códigos junto com a conta)
+# ---------------------------------------------------------------------------
+class CodigoVerificacao(Base):
+    __tablename__ = "codigos_verificacao"
+
+    id          = Column(Integer, primary_key=True, autoincrement=True)
+    usuario_id  = Column(
+        UUID(as_uuid=True),
+        ForeignKey("usuarios.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    finalidade  = Column(String(20), nullable=False)      # "email" | "senha"
+    codigo_hash = Column(String(64), nullable=False)
+    expira_em   = Column(DateTime, nullable=False)
+    usado       = Column(Boolean, nullable=False, default=False)
+    tentativas  = Column(Integer, nullable=False, default=0)
+    criado_em   = Column(DateTime, nullable=False, default=datetime.now)

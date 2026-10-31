@@ -1,7 +1,4 @@
-"""
-crud/sync.py — sincroniza programas (PPGs) e áreas com o banco local,
-usando a tabela GrandeAreas já seedada (dificilmente muda).
-"""
+
 import logging
 from datetime import datetime, timezone
 

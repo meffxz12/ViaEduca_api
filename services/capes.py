@@ -2,7 +2,7 @@ import time
 import requests
 
 BASE_URL = "https://sucupira.capes.gov.br/api/data/online"
-TIMEOUT = 60  # CAPES pode ser lenta, dá mais margem
+TIMEOUT = 60  
 MAX_TENTATIVAS = 3
 
 

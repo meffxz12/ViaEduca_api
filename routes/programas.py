@@ -1,10 +1,6 @@
-"""
-routes/programas.py — cadastro (coordenador), busca (estudante) e
-gerenciamento de linhas de pesquisa / etapas do processo de um programa
-"""
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from crud import programas as crud
@@ -29,6 +25,9 @@ from crud import solicitacao_vinculo as crud_solicitacao
 from schemas.solicitacao_vinculo import SolicitacaoVinculoCreate, SolicitacaoVinculoResponse
 
 programas_router = APIRouter(prefix="/programas", tags=["Programas"])
+
+# notas aceitas no filtro: 1 a 7 ou A (maiúsculo)
+NOTA_REGEX = r"^([1-7]|A)$"
 
 
 def _exigir_dono(programa, usuario_logado: Usuario) -> None:
@@ -100,6 +99,7 @@ def contar_programas(
     area_avaliacao_id: Optional[int] = None,
     area_conhecimento_id: Optional[int] = None,
     nota_capes_min: Optional[int] = None,
+    nota_capes: Optional[str] = Query(None, pattern=NOTA_REGEX),
     nome: Optional[str] = None,
     grande_area_id: Optional[int] = None,
     db: Session = Depends(pegar_sessao),
@@ -111,6 +111,7 @@ def contar_programas(
         area_avaliacao_id=area_avaliacao_id,
         area_conhecimento_id=area_conhecimento_id,
         nota_capes_min=nota_capes_min,
+        nota_capes=nota_capes,
         nome=nome,
         grande_area_id=grande_area_id,
     )
@@ -128,9 +129,13 @@ def listar_programas(
     area_avaliacao_id: Optional[int] = None,
     area_conhecimento_id: Optional[int] = None,
     nota_capes_min: Optional[int] = None,
+    # nota exata da CAPES: 1 a 7 ou A (filtro do app)
+    nota_capes: Optional[str] = Query(None, pattern=NOTA_REGEX),
     nome: Optional[str] = None,
-    limit: Optional[int] = None,
-    offset: Optional[int] = None,
+    # Teto de 100 por chamada: sem isso, qualquer um podia pedir o banco
+    # inteiro (com linhas de pesquisa e etapas) numa requisição só.
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
     grande_area_id: Optional[int] = None,
     db: Session = Depends(pegar_sessao),
 ):
@@ -141,6 +146,7 @@ def listar_programas(
         area_avaliacao_id=area_avaliacao_id,
         area_conhecimento_id=area_conhecimento_id,
         nota_capes_min=nota_capes_min,
+        nota_capes=nota_capes,
         nome=nome,
         limit=limit,
         offset=offset,
@@ -166,13 +172,36 @@ def solicitar_vinculo(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Programa não encontrado")
     if programa.coordenador_id is not None:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Este programa já tem um coordenador vinculado")
-    if crud_solicitacao.ja_tem_pendente(db, usuario_logado.id):
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Você já tem uma solicitação pendente")
+
+    # Descobre o "programa de referência" do coordenador — pode vir de um
+    # programa já aprovado, ou de uma solicitação ainda pendente (ex: ele
+    # está no meio do cadastro selecionando mestrado + doutorado juntos).
+    referencia = None
+
+    aprovados = crud.programas_do_coordenador(db, usuario_logado.id)
+    if aprovados:
+        referencia = aprovados[0]
+    else:
+        pendentes = crud_solicitacao.listar_pendentes_do_coordenador(db, usuario_logado.id)
+        if pendentes:
+            referencia = pendentes[0].programa
+
+    if referencia is not None:
+        mesmo_ppg = (
+            referencia.nome == programa.nome
+            and referencia.instituicao_id == programa.instituicao_id
+        )
+        if not mesmo_ppg:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "Você só pode solicitar vínculo com o mesmo programa (mestrado/doutorado). "
+                "Para um programa diferente, entre em contato com o suporte.",
+            )
 
     return crud_solicitacao.criar(
         db, programa_id, usuario_logado.id,
-        linhas_pesquisa=dados.linhas_pesquisa,      
-        etapas_processo=dados.etapas_processo,       
+        linhas_pesquisa=dados.linhas_pesquisa,
+        etapas_processo=dados.etapas_processo,
     )
 
 
@@ -281,8 +310,17 @@ def remover_linha_pesquisa(
 # ==================================================================
 # Etapas do processo — gerenciamento individual (fora do cadastro em lote)
 # ==================================================================
+# O PATCH/DELETE usam "etapas-processo" (hífen); o POST usava "etapas_processo"
+# (underline). Agora o oficial é o hífen, e o underline segue funcionando
+# (escondido do /docs) pra não quebrar o app enquanto o Flutter não for ajustado.
 @programas_router.post(
     "/{programa_id}/etapas_processo",
+    response_model=EtapaProcessoResponse,
+    status_code=status.HTTP_201_CREATED,
+    include_in_schema=False,
+)
+@programas_router.post(
+    "/{programa_id}/etapas-processo",
     response_model=EtapaProcessoResponse,
     status_code=status.HTTP_201_CREATED,
 )

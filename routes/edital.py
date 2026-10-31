@@ -1,6 +1,3 @@
-"""
-routes/edital.py — cadastro e gerenciamento de editais (toggle do coordenador)
-"""
 import os
 import shutil
 import uuid
@@ -11,8 +8,8 @@ from sqlalchemy.orm import Session
 from crud import edital as crud
 from crud import arquivo_edital as crud_arquivo
 from crud import programas as crud_programas
-from dependencies import pegar_sessao, exigir_coordenador
-from models import Usuario
+from dependencies import pegar_sessao, exigir_coordenador, get_usuario_opcional
+from models import EtapaProcesso, Usuario
 from schemas.edital import EditalCreate, EditalUpdateStatus, EditalResponse, EditalUpdate
 from schemas.arquivo_edital import ArquivoEditalResponse
 
@@ -28,6 +25,16 @@ def _exigir_dono_programa(db: Session, programa_id: int, usuario_logado: Usuario
     if programa.coordenador_id != usuario_logado.id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Você não é o coordenador deste programa")
     return programa
+
+
+def _e_dono(programa, usuario: Usuario | None) -> bool:
+    """True se quem está chamando é o coordenador dono do programa."""
+    return (
+        usuario is not None
+        and usuario.tipo == "coordenador"
+        and programa is not None
+        and programa.coordenador_id == usuario.id
+    )
 
 
 # ------------------------------------------------------------------
@@ -58,8 +65,16 @@ def criar_edital(
 def listar_editais(
     programa_id: int,
     db: Session = Depends(pegar_sessao),
+    usuario: Usuario | None = Depends(get_usuario_opcional),
 ):
-    return crud.listar_editais_por_programa(db, programa_id)
+    editais = crud.listar_editais_por_programa(db, programa_id)
+
+    # Rascunho é só do coordenador dono do programa. Pra qualquer outra
+    # pessoa (estudante, visitante sem login) o rascunho nem existe.
+    programa = crud_programas.buscar_programa(db, programa_id)
+    if not _e_dono(programa, usuario):
+        editais = [e for e in editais if e.status != "rascunho"]
+    return editais
 
 
 # ------------------------------------------------------------------
@@ -109,13 +124,58 @@ def anexar_arquivo(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Edital não encontrado")
     _exigir_dono_programa(db, edital.programa_id, usuario_logado)
 
+    # A etapa escolhida tem que ser deste mesmo programa (antes dava pra ligar
+    # o arquivo a uma etapa de outro programa, ou estourar 500 com id inexistente)
+    if etapa_id is not None:
+        etapa_ok = (
+            db.query(EtapaProcesso.id)
+            .filter(
+                EtapaProcesso.id == etapa_id,
+                EtapaProcesso.programa_id == edital.programa_id,
+            )
+            .first()
+        )
+        if etapa_ok is None:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "Etapa inválida para este programa.",
+            )
+
+    # ── Proteções no upload: tamanho e tipo do arquivo ──────────────────
+    # Sem isso, qualquer coordenador logado podia mandar um arquivo de
+    # qualquer tamanho/tipo (ex: um executável, ou um PDF de 2GB) e lotar
+    # o disco do servidor ou tentar algo malicioso.
+    EXTENSOES_PERMITIDAS = {".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png"}
+    TAMANHO_MAXIMO_MB = 20
+
+    extensao = os.path.splitext(arquivo.filename or "")[1].lower()
+    if extensao not in EXTENSOES_PERMITIDAS:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            f"Tipo de arquivo não permitido. Use: {', '.join(sorted(EXTENSOES_PERMITIDAS))}",
+        )
+
     os.makedirs(UPLOAD_DIR, exist_ok=True)
-    extensao = os.path.splitext(arquivo.filename or "")[1]
     nome_arquivo = f"{uuid.uuid4().hex}{extensao}"
     caminho = os.path.join(UPLOAD_DIR, nome_arquivo)
 
+    tamanho_maximo_bytes = TAMANHO_MAXIMO_MB * 1024 * 1024
+    tamanho_total = 0
+
     with open(caminho, "wb") as f:
-        shutil.copyfileobj(arquivo.file, f)
+        while True:
+            pedaco = arquivo.file.read(1024 * 1024)  # lê 1MB por vez
+            if not pedaco:
+                break
+            tamanho_total += len(pedaco)
+            if tamanho_total > tamanho_maximo_bytes:
+                f.close()
+                os.remove(caminho)
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    f"Arquivo muito grande. Máximo permitido: {TAMANHO_MAXIMO_MB}MB",
+                )
+            f.write(pedaco)
 
     arquivo_url = f"/arquivos/editais/{nome_arquivo}"
 
@@ -139,7 +199,18 @@ def anexar_arquivo(
 def listar_arquivos(
     edital_id: int,
     db: Session = Depends(pegar_sessao),
+    usuario: Usuario | None = Depends(get_usuario_opcional),
 ):
+    edital = crud.buscar_edital(db, edital_id)
+    if edital is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Edital não encontrado")
+
+    # Arquivos de rascunho só aparecem pro dono do programa
+    if edital.status == "rascunho":
+        programa = crud_programas.buscar_programa(db, edital.programa_id)
+        if not _e_dono(programa, usuario):
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Edital não encontrado")
+
     return crud_arquivo.listar_por_edital(db, edital_id)
 
 @edital_router.patch(
@@ -159,3 +230,26 @@ def atualizar_edital(
     _exigir_dono_programa(db, edital.programa_id, usuario_logado)
 
     return crud.atualizar_edital(db, edital, dados)
+
+
+# ------------------------------------------------------------------
+# DELETE /editais/{edital_id}
+# ------------------------------------------------------------------
+@edital_router.delete(
+    "/editais/{edital_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def apagar_edital(
+    edital_id: int,
+    db: Session = Depends(pegar_sessao),
+    usuario_logado: Usuario = Depends(exigir_coordenador),
+):
+    edital = crud.buscar_edital(db, edital_id)
+    if edital is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Edital não encontrado")
+
+    # Só o coordenador dono do programa pode apagar — mesma checagem
+    # usada em todas as outras rotas de edital.
+    _exigir_dono_programa(db, edital.programa_id, usuario_logado)
+
+    crud.apagar_edital(db, edital)
