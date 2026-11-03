@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 
-from models import ArquivoEdital, Edital, ProgramaFavorito, Notificacao, Usuario
+from models import ArquivoEdital, Edital, EtapaProcesso, ProgramaFavorito, Notificacao, Usuario
 from services.firebase_service import enviar_push
 
 
@@ -22,15 +22,24 @@ def criar_arquivo(
     db.add(arquivo)
     db.flush()
 
-    _notificar_favoritos(db, edital_id, titulo, alerta_sonoro)
+    _notificar_favoritos(db, edital_id, titulo, alerta_sonoro, etapa_id)
 
     db.commit()
     db.refresh(arquivo)
     return arquivo
 
 
+def _cortar(texto: str, limite: int) -> str:
+    texto = texto or ""
+    return texto if len(texto) <= limite else texto[: limite - 1].rstrip() + "…"
+
+
 def _notificar_favoritos(
-    db: Session, edital_id: int, titulo_arquivo: str, alerta_sonoro: bool
+    db: Session,
+    edital_id: int,
+    titulo_arquivo: str,
+    alerta_sonoro: bool,
+    etapa_id: int | None = None,
 ):
     """Cria a notificação in-app pra TODOS que favoritaram o programa.
     Só envia push (que já dispara som padrão do celular) se alerta_sonoro=True —
@@ -62,6 +71,26 @@ def _notificar_favoritos(
         push_titulo = f"Edital atualizado · {programa_nome}" if programa_nome else "Edital atualizado"
         corpo_base = f"{edital.titulo}: {titulo_arq}"
         push_corpo = f"{ies_nome} — {corpo_base}" if ies_nome else corpo_base
+    # Arquivo ligado a uma ETAPA do processo seletivo (ex.: resultado da prova)
+    # = avanço de etapa: o alerta diz qual etapa avançou.
+    etapa = (
+        db.query(EtapaProcesso).filter(EtapaProcesso.id == etapa_id).first()
+        if etapa_id is not None
+        else None
+    )
+    if etapa is not None:
+        resto = titulo_arq or edital.titulo
+        titulo_notif = f"Etapa {etapa.ordem} — {etapa.descricao}: {resto}"
+        push_titulo = (
+            f"Etapa {etapa.ordem} · {programa_nome}" if programa_nome else f"Etapa {etapa.ordem}"
+        )
+        push_corpo = f"{etapa.descricao}: {resto}"
+        if ies_nome:
+            push_corpo = f"{ies_nome} — {push_corpo}"
+
+    # a coluna notificacoes.titulo tem 200 caracteres; passar disso dava erro 500
+    titulo_notif = _cortar(titulo_notif, 200)
+
     # Vai junto no push pro app abrir o programa/edital certo ao tocar nele
     push_dados = {
         "tipo": "edital",

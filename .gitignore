@@ -12,3 +12,10 @@ viaeduca-*firebase-adminsdk*.json
 .env
 
 uploads/
+
+*.sql
+erros.txt
+*.bak
+.env
+firebase-service-account.json
+uploads/

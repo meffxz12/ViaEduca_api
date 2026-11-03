@@ -1,5 +1,4 @@
 import os
-import shutil
 import uuid
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
@@ -12,11 +11,9 @@ from dependencies import pegar_sessao, exigir_coordenador, get_usuario_opcional
 from models import EtapaProcesso, Usuario
 from schemas.edital import EditalCreate, EditalUpdateStatus, EditalResponse, EditalUpdate
 from schemas.arquivo_edital import ArquivoEditalResponse
+from services import storage
 
 edital_router = APIRouter(tags=["Editais"])
-
-UPLOAD_DIR = "uploads/editais"
-
 
 def _exigir_dono_programa(db: Session, programa_id: int, usuario_logado: Usuario):
     programa = crud_programas.buscar_programa(db, programa_id)
@@ -155,28 +152,22 @@ def anexar_arquivo(
             f"Tipo de arquivo não permitido. Use: {', '.join(sorted(EXTENSOES_PERMITIDAS))}",
         )
 
-    os.makedirs(UPLOAD_DIR, exist_ok=True)
-    nome_arquivo = f"{uuid.uuid4().hex}{extensao}"
-    caminho = os.path.join(UPLOAD_DIR, nome_arquivo)
-
+    # Lê o arquivo na memória (no máximo 20MB) pra validar o tamanho antes de
+    # guardar — guarda no Supabase Storage (produção) ou na pasta local (dev).
     tamanho_maximo_bytes = TAMANHO_MAXIMO_MB * 1024 * 1024
-    tamanho_total = 0
+    conteudo = arquivo.file.read(tamanho_maximo_bytes + 1)
+    if len(conteudo) > tamanho_maximo_bytes:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            f"Arquivo muito grande. Máximo permitido: {TAMANHO_MAXIMO_MB}MB",
+        )
+    if not conteudo:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Arquivo vazio.")
 
-    with open(caminho, "wb") as f:
-        while True:
-            pedaco = arquivo.file.read(1024 * 1024)  # lê 1MB por vez
-            if not pedaco:
-                break
-            tamanho_total += len(pedaco)
-            if tamanho_total > tamanho_maximo_bytes:
-                f.close()
-                os.remove(caminho)
-                raise HTTPException(
-                    status.HTTP_400_BAD_REQUEST,
-                    f"Arquivo muito grande. Máximo permitido: {TAMANHO_MAXIMO_MB}MB",
-                )
-            f.write(pedaco)
+    nome_arquivo = f"{uuid.uuid4().hex}{extensao}"
+    storage.salvar_arquivo(nome_arquivo, conteudo)
 
+    # o caminho salvo continua o mesmo de sempre — o app não muda
     arquivo_url = f"/arquivos/editais/{nome_arquivo}"
 
     return crud_arquivo.criar_arquivo(
