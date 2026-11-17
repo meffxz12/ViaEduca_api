@@ -136,9 +136,7 @@ def apagar_minha_conta(
     db: Session = Depends(pegar_sessao),
     usuario_logado: Usuario = Depends(get_usuario_atual),
 ):
-    # Pede a senha de novo antes de apagar — protege contra apagar sem
-    # querer (ex: celular destravado na mão de outra pessoa) e é o padrão
-    # pra qualquer ação irreversível como essa.
+   
     if not verificar_senha(dados.senha, usuario_logado.senha_hash):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Senha incorreta")
 

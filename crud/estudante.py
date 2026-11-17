@@ -3,9 +3,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session, joinedload
 
-from models import ProgramaFavorito, Notificacao, Edital, Usuario, Estudante, Programa
-from services.notificador import cortar
-from services.firebase_service import enviar_push
+from models import ProgramaFavorito, Notificacao, Edital, Estudante
 
 # ---------------------------------------------------------------------------
 # Favoritos
@@ -36,37 +34,15 @@ def favoritar_programa(
     if existente is not None:
         return existente
 
+    # Favoritar NÃO gera notificação: quem favorita já está vendo o programa
+    # e os editais na tela. O aviso só chega pro que acontecer DEPOIS
+    # (novo edital, prazo alterado, programa abriu/fechou, lembretes).
     favorito = ProgramaFavorito(estudante_id=estudante_id, programa_id=programa_id)
     db.add(favorito)
-
-    programa = db.query(Programa).filter(Programa.id == programa_id).first()
-
-    # Só avisa "inscrições abertas" se o PROGRAMA está aberto; usa o edital mais recente.
-    # (edital não abre nem fecha: quem abre é o programa)
-    edital_recente = None
-    if programa is not None and programa.programa_aberto:
-        edital_recente = (
-            db.query(Edital)
-            .filter(Edital.programa_id == programa_id, Edital.status != "rascunho")
-            .order_by(Edital.criado_em.desc())
-            .first()
-        )
-
-    if edital_recente is not None:
-        titulo_notif = cortar(f"Inscrições abertas: {edital_recente.titulo}")
-        db.add(Notificacao(
-            estudante_id=estudante_id,
-            edital_id=edital_recente.id,
-            titulo=titulo_notif,
-        ))
-
-        usuario = db.query(Usuario).filter(Usuario.id == estudante_id).first()
-        if usuario and usuario.fcm_token:
-            enviar_push(usuario.fcm_token, "ViaEduca", titulo_notif)
-
     db.commit()
     db.refresh(favorito)
     return favorito
+
 
 def desfavoritar_programa(db: Session, estudante_id: uuid.UUID, programa_id: int) -> bool:
     favorito = (

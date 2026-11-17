@@ -1,21 +1,14 @@
-"""
-services/notificador.py — cria notificações para quem favoritou um programa.
 
-Usado por: criar/editar/encerrar edital, anexar arquivo e os lembretes de prazo.
-Regras:
-  - a notificação do app (tabela notificacoes) é criada pra TODOS que favoritaram
-  - push só se push=True, e no máximo 1 por aparelho (várias contas no mesmo celular)
-  - o título é cortado em 200 caracteres (limite da coluna; antes um edital com
-    título longo estourava erro 500 ao notificar)
-  - evitar_duplicada=True: não repete a mesma notificação (usado pelos lembretes,
-    que rodam todo dia)
-"""
 from sqlalchemy.orm import Session
 
 from models import Notificacao, ProgramaFavorito, Usuario
 from services.firebase_service import enviar_push
 
 LIMITE_TITULO = 200
+
+# Usado quando a mensagem não tem como ser dividida em título + corpo.
+# (Não pode ser só "ViaEduca": o Android já mostra o nome do app no cabeçalho.)
+TITULO_PUSH_PADRAO = "Novidade em um programa favorito"
 
 
 def cortar(texto: str, limite: int = LIMITE_TITULO) -> str:
@@ -24,6 +17,22 @@ def cortar(texto: str, limite: int = LIMITE_TITULO) -> str:
 
 def formatar_data(d) -> str:
     return d.strftime("%d/%m/%Y") if d else "—"
+
+
+def separar_titulo_corpo(texto: str) -> tuple[str, str]:
+    """Divide a mensagem em (título, corpo) pro push.
+
+    'Novo edital: Edital 2026/1'              -> ('Novo edital', 'Edital 2026/1')
+    'Prazo alterado: até 05/03 — Edital X'    -> ('Prazo alterado', 'até 05/03 — Edital X')
+    'Datas de inscrição removidas — Edital X' -> ('Datas de inscrição removidas', 'Edital X')
+    Sem separador: título padrão e a mensagem inteira no corpo.
+    """
+    for separador in (": ", " — "):
+        if separador in texto:
+            titulo, corpo = texto.split(separador, 1)
+            if titulo.strip() and corpo.strip():
+                return titulo.strip(), corpo.strip()
+    return TITULO_PUSH_PADRAO, texto
 
 
 def notificar_favoritos(
@@ -76,7 +85,11 @@ def notificar_favoritos(
             .all()
             if r[0]
         }
+        titulo_push, corpo_push = separar_titulo_corpo(titulo)
+        dados = {"programa_id": programa_id}
+        if edital_id is not None:
+            dados["edital_id"] = edital_id
         for token in tokens:
-            enviar_push(token, "ViaEduca", titulo)
+            enviar_push(token, titulo_push, corpo_push, dados)
 
     return len(ids)

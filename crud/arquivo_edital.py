@@ -41,9 +41,7 @@ def _notificar_favoritos(
     alerta_sonoro: bool,
     etapa_id: int | None = None,
 ):
-    """Cria a notificação in-app pra TODOS que favoritaram o programa.
-    Só envia push (que já dispara som padrão do celular) se alerta_sonoro=True —
-    é isso que o coordenador escolhe por arquivo."""
+
     edital = db.query(Edital).filter(Edital.id == edital_id).first()
     if edital is None:
         return
@@ -54,14 +52,11 @@ def _notificar_favoritos(
         .all()
     )
 
-    # Pro estudante não existe "arquivo" — é tudo edital. A notificação
-    # fala do edital (e do que mudou nele), nunca da palavra "arquivo".
-    # Se o título do arquivo for vazio ou igual ao do edital (caso do edital
-    # recém-publicado), não repete o nome: "Novo edital: X" em vez de "Edital X: X".
+
     titulo_arq = (titulo_arquivo or "").strip()
     programa_nome, ies_nome = _programa_e_ies(edital)
     if not titulo_arq or titulo_arq.casefold() == edital.titulo.strip().casefold():
-        titulo_notif = f"Novo edital: {edital.titulo}"
+        titulo_notif = f"Novo: {edital.titulo}"
         # Push: o Android já mostra "ViaEduca" no cabeçalho, então o título
         # do push não repete o nome do app.
         push_titulo = f"Novo edital · {programa_nome}" if programa_nome else "Novo edital"
@@ -71,8 +66,7 @@ def _notificar_favoritos(
         push_titulo = f"Edital atualizado · {programa_nome}" if programa_nome else "Edital atualizado"
         corpo_base = f"{edital.titulo}: {titulo_arq}"
         push_corpo = f"{ies_nome} — {corpo_base}" if ies_nome else corpo_base
-    # Arquivo ligado a uma ETAPA do processo seletivo (ex.: resultado da prova)
-    # = avanço de etapa: o alerta diz qual etapa avançou.
+   
     etapa = (
         db.query(EtapaProcesso).filter(EtapaProcesso.id == etapa_id).first()
         if etapa_id is not None
@@ -135,8 +129,7 @@ def _notificar_favoritos(
 
 
 def _programa_e_ies(edital):
-    """Nome do programa e da IES do edital (None se não achar).
-    Usa getattr pra não quebrar o envio caso o nome de algum campo seja outro."""
+    
     programa = getattr(edital, "programa", None)
     programa_nome = getattr(programa, "nome", None)
     # No projeto a IES é a "Instituicao" (nome + sigla); "ies" fica como reserva

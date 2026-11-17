@@ -1,15 +1,4 @@
-"""
-routes/verificacao.py — verificação de e-mail e "esqueci a senha"
 
-Rotas (todas públicas, sem token):
-    POST /auth/verificar-email/enviar     {email}
-    POST /auth/verificar-email/confirmar  {email, codigo}
-    POST /auth/esqueci-senha              {email}
-    POST /auth/redefinir-senha            {email, codigo, nova_senha}
-
-Por segurança, as rotas de "enviar" e "esqueci-senha" respondem SEMPRE
-a mesma coisa, exista a conta ou não (não revela quais e-mails estão cadastrados).
-"""
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.orm import Session

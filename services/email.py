@@ -1,17 +1,4 @@
-"""
-email_service.py — envio de e-mail pela API do Resend (https://resend.com).
 
-Variáveis no .env:
-    RESEND_API_KEY=re_xxxxxxxx
-    RESEND_FROM=ViaEduca <onboarding@resend.dev>     (opcional)
-
-IMPORTANTE: enquanto você não verificar um domínio seu no Resend, o remetente
-"onboarding@resend.dev" só consegue enviar para o e-mail da PRÓPRIA conta Resend.
-Pra mandar pra qualquer usuário, verifique um domínio em resend.com/domains e
-use um remetente dele (ex.: ViaEduca <nao-responda@seudominio.com.br>).
-
-Sem RESEND_API_KEY o e-mail NÃO é enviado: o código aparece no log do servidor.
-"""
 import json
 import logging
 import os

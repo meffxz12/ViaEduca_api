@@ -1,10 +1,4 @@
-"""
-Envia os PDFs que já estão em uploads/editais pro Supabase Storage,
-mantendo o MESMO nome (os caminhos salvos no banco continuam valendo).
 
-Uso (na pasta da API, com SUPABASE_URL e SUPABASE_SERVICE_KEY no .env):
-    python scripts/migrar_uploads.py
-"""
 import os
 import sys
 

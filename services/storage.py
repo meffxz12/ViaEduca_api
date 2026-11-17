@@ -1,13 +1,4 @@
-"""
-services/storage.py — guarda os arquivos dos editais.
 
-- Com SUPABASE_URL e SUPABASE_SERVICE_KEY definidos: envia pro Supabase Storage
-  (bucket PÚBLICO, nome em SUPABASE_BUCKET, padrão "editais").
-- Sem elas (seu computador, desenvolvimento): grava em uploads/editais, como antes.
-
-O caminho salvo no banco continua "/arquivos/editais/<nome>" — o app não muda.
-A rota GET /arquivos/editais/<nome> (routes/arquivos.py) entrega o arquivo.
-"""
 import logging
 import os
 

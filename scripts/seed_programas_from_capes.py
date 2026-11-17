@@ -1,4 +1,4 @@
-# scripts/seed_programas_from_capes.py
+
 from database import SessionLocal
 from models import ProgramaCapes, Programa
 from sqlalchemy.exc import IntegrityError

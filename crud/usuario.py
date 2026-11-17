@@ -95,14 +95,7 @@ def listar_usuarios(db: Session) -> list[Usuario]:
 # APAGAR CONTA
 # ------------------------------------------------------------------
 def coordenador_tem_programas(db: Session, usuario_id) -> bool:
-    """
-    Checa se o coordenador ainda tem algum programa vinculado antes de
-    deixar apagar a conta. A FK 'Programa.coordenador_id' não tem
-    ondelete=CASCADE de propósito (apagar um coordenador não devia apagar
-    os programas — eles continuam existindo pra outro coordenador assumir),
-    então sem essa checagem o banco simplesmente recusaria o DELETE com um
-    erro feio de integridade. Melhor avisar o usuário de forma clara antes.
-    """
+    
     from models import Programa
     return (
         db.query(Programa)
@@ -113,12 +106,6 @@ def coordenador_tem_programas(db: Session, usuario_id) -> bool:
 
 
 def apagar_usuario(db: Session, usuario: Usuario) -> None:
-    """
-    Apaga a conta. No banco, 'estudantes.usuario_id' e
-    'coordenadores.usuario_id' têm ondelete=CASCADE pra 'usuarios.id', e as
-    tabelas que dependem do estudante (favoritos, notificações) também têm
-    CASCADE — então apagar o Usuario já apaga tudo isso junto
-    automaticamente no Postgres.
-    """
+  
     db.delete(usuario)
     db.commit()

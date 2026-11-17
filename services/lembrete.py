@@ -1,22 +1,4 @@
-"""
-services/lembretes.py — avisos automáticos de prazo (rodam todo dia).
 
-Pra quem favoritou o programa, dos editais de programas ABERTOS (programa_aberto):
-  - no dia em que as inscrições começam ("Inscrições abertas hoje")
-  - 7, 3 e 1 dia antes do fim das inscrições
-  - no último dia
-
-Não repete aviso (a mesma notificação nunca é criada duas vezes), então pode rodar
-quantas vezes quiser. A data do aviso vai no texto: se o coordenador mudar o prazo,
-os avisos novos valem de novo.
-
-No main.py:
-    from services.lembretes import iniciar_agendador
-
-    @app.on_event("startup")
-    def _iniciar_lembretes():
-        iniciar_agendador()
-"""
 import logging
 import threading
 import time

@@ -1,4 +1,4 @@
-# scripts/criar_admin.py
+
 from database import SessionLocal
 from models import Usuario
 from security import criar_hash_senha

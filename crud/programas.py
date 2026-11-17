@@ -208,9 +208,7 @@ def atualizar_programa(
     for campo, valor in campos.items():
         setattr(programa, campo, valor)
  
-    # Programa abriu ou encerrou o processo seletivo -> avisa quem favoritou.
-    # (a notificação do app precisa de um edital; usa o mais recente. Se o
-    # programa ainda não tem nenhum, avisa só por push.)
+   
     if "programa_aberto" in campos and programa.programa_aberto != estava_aberto:
         ultimo_edital = (
             db.query(Edital)

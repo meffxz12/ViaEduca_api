@@ -1,9 +1,4 @@
-"""
-routes/arquivos.py — GET /arquivos/editais/{nome}
 
-Mantém o endereço que o app já usa. Se o arquivo existe no disco local, entrega
-direto; senão redireciona pro Supabase Storage (o app segue o redirecionamento).
-"""
 import os
 import re
 

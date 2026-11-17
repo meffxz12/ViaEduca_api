@@ -1,7 +1,4 @@
-"""
-scripts/debug_capes.py — busca um programa específico na API da Sucupira
-e mostra TODOS os campos do JSON bruto, sem filtrar nada.
-"""
+
 import json
 from services.capes import listar_programas
 

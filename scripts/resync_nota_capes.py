@@ -1,7 +1,4 @@
-"""
-scripts/resync_nota_capes.py — atualiza Programa.nota_capes a partir do
-ProgramaCapes.conceito já sincronizado, só pra programas SEM coordenador.
-"""
+
 from database import SessionLocal
 from models import Programa, ProgramaCapes
 

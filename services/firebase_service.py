@@ -1,14 +1,3 @@
-"""
-services/firebase_service.py — envio de push via Firebase Cloud Messaging (FCM)
-
-Credenciais, em ordem de prioridade:
-  1. FIREBASE_CREDENTIALS_JSON -> conteúdo do JSON da service account (produção / Railway)
-  2. FIREBASE_CREDENTIALS_B64  -> o mesmo JSON em base64 (se o painel estragar aspas/quebras de linha)
-  3. arquivo firebase-service-account.json (desenvolvimento local; fica no .gitignore)
-
-Se nenhuma existir, o push fica DESLIGADO e o resto da API continua funcionando
-(antes o servidor nem subia sem o arquivo, porque a leitura era no import).
-"""
 import base64
 import json
 import logging
@@ -21,14 +10,7 @@ logger = logging.getLogger("push")
 
 _ARQUIVO_LOCAL = "firebase-service-account.json"
 _iniciado = False
-
-# --- Configuração visual da notificação no Android ---------------------------
-# Esses valores precisam existir no app:
-#   - CANAL_ANDROID: canal criado no app com importância ALTA
-#   - ICONE_ANDROID: PNG branco com fundo transparente em res/drawable (ic_notification)
 CANAL_ANDROID = "high_importance_channel"
-ICONE_ANDROID = "ic_notification"
-COR_ANDROID = "#1E88E5"
 
 
 def _carregar_credencial():
@@ -89,8 +71,6 @@ def enviar_notificacao(token: str, titulo: str, corpo: str, dados: dict | None =
             priority="high",
             notification=messaging.AndroidNotification(
                 channel_id=CANAL_ANDROID,
-                icon=ICONE_ANDROID,
-                color=COR_ANDROID,
                 default_sound=True,
                 priority="max",
             ),
@@ -108,7 +88,7 @@ def enviar_notificacao(token: str, titulo: str, corpo: str, dados: dict | None =
 
 def enviar_push(fcm_token: str, titulo: str, corpo: str, dados: dict | None = None) -> bool:
     """
-    Versão "segura" usada pelo crud/arquivo_edital.py e crud/estudante.py —
+    Versão "segura" usada pelo crud/arquivo_edital.py e services/notificador.py —
     nunca levanta exceção (não pode travar a criação do edital/favorito
     só porque o push falhou), e ignora se o usuário não tiver token salvo.
     """

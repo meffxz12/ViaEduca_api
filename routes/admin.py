@@ -1,11 +1,4 @@
-"""
-routes/admin.py — painel do admin: aprovar/rejeitar vínculo coordenador × programa.
 
-GET  /admin/solicitacoes                    -> pendentes, já com nome do programa,
-                                               instituição, dados do coordenador e rascunhos
-POST /admin/solicitacoes/{id}/aprovar
-POST /admin/solicitacoes/{id}/rejeitar      {motivo}  (até 200 caracteres)
-"""
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
