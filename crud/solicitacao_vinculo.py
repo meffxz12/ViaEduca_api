@@ -25,6 +25,19 @@ def ja_tem_pendente(db: Session, coordenador_id) -> bool:
     ).first() is not None
 
 
+def listar_pendentes_do_coordenador(db: Session, coordenador_id):
+   
+    return (
+        db.query(SolicitacaoVinculo)
+        .filter(
+            SolicitacaoVinculo.coordenador_id == coordenador_id,
+            SolicitacaoVinculo.status == "pendente",
+        )
+        .order_by(SolicitacaoVinculo.criado_em)
+        .all()
+    )
+
+
 def listar_pendentes(db: Session):
     return db.query(SolicitacaoVinculo).filter(
         SolicitacaoVinculo.status == "pendente"
@@ -83,6 +96,7 @@ def rejeitar(db: Session, solicitacao: SolicitacaoVinculo, admin_id, motivo: str
     db.commit()
     db.refresh(solicitacao)
     return solicitacao
+
 
 def buscar_por_coordenador(db: Session, coordenador_id):
     return (
